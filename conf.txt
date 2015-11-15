@@ -1,0 +1,2 @@
+1
+//0-1 = fog of war off/on  (tem que ficar na pasta do starcraft.exe)
