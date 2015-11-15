@@ -3,11 +3,33 @@
 #include <Windows.h>
 #include <BWAPI\Position.h>
 #include <BWAPI\UnitType.h>
+using namespace BWAPI;
+
 
 //blackboard!
 bool GameOver = false;
 Unidade* amigoDaVez = NULL;
+Unidade* myScout = NULL;
+std::set<Unidade*> myMinerals;
 //
+
+void Samba (Unidade* u){
+	Position target = Position(u->getPosition().x()+100, u->getPosition().y()+100);
+	u->patrol(target);
+}
+
+void AIScout (Unidade* u){
+	BWAPI::TilePosition t_position = u->getTilePosition();
+	printf("tile, (%d,%d)\n", t_position.x(),t_position.y());
+	BWAPI::Position target = BWAPI::Position(1000,1000);
+	if ( u->hasPath(target) ){
+		u->move(target);
+	}
+	if( u->getPosition() == target ){
+		Samba(u);
+	}
+	printf("Scout, %d\n", u->getMinerals().size());
+}
 
 void AITrabalhador (Unidade* u){
 	double distance = 99999;
@@ -19,6 +41,7 @@ void AITrabalhador (Unidade* u){
 			mineralPerto = *it;
 		}//vai minerar no mineral mais perto
 	}
+	printf("Coletor, %d\n", u->getMinerals().size());
 	if(mineralPerto != NULL) u->rightClick(mineralPerto);
 }
 
@@ -91,7 +114,14 @@ DWORD WINAPI threadAgente(LPVOID param){
 		//Inserir o codigo de voces a partir daqui//
 		if(u->isIdle()){ //nao ta fazendo nada, fazer algo util
 			if(u == amigoDaVez) AIConstrutora(u);
-			else if(u->getType().isWorker()) AITrabalhador(u);
+			else if(u->getType().isWorker()){
+				if(myScout == NULL || !myScout->exists() || myScout == u){
+					myScout = u;
+					AIScout(u);
+				}else{
+					AITrabalhador(u);
+				}
+			}
 			else if(u->getType().canProduce()) AICentroComando(u);
 			else AIGuerreiro(u);
 		}
@@ -104,6 +134,8 @@ void MeuAgentePrincipal::InicioDePartida(){
 	//Inicializar estruturas de dados necessarias, ou outras rotinas de inicio do seu programa. Cuidado com concorrencia, 
 	//em alguns casos pode ser recomendavel que seja feito antes do while na criacao de uma nova thread.
 	GameOver = false;
+	printf("MAP height %d\n", AgentePrincipal::mapHeight());
+	printf("MAP Width %d\n", AgentePrincipal::mapWidth());
 }
 
 void MeuAgentePrincipal::onEnd(bool isWinner){  
@@ -126,7 +158,7 @@ void MeuAgentePrincipal::UnidadeCriada(Unidade* unidade){
 }
 
 /*
-	Os outros eventos nao existem numa arquitetura orientada a Agentes Autonomos, pois eram relacionados ao Player do Broodwar
+	Os outros eventos nao existem numa arquitetura orientada a Agentes Autonomos, pois eram relacionados ao Player do BW
 	de maneira generica, nao sendo especificamente ligados a alguma unidade do jogador. Se desejado, seus comportamentos podem
 	ser simulados através de técnicas ou estruturas de comunicação dos agentes, como por exemplo Blackboards.
 */
